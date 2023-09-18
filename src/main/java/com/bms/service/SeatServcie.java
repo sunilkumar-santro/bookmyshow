@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bms.controller.repository.SeatLockerRepo;
 import com.bms.controller.repository.SeatRepo;
 import com.bms.dto.Seat;
+import com.bms.dto.SeatCacheKey;
 import com.bms.entity.SeatLockEntity;
 
 public class SeatServcie {
@@ -26,7 +27,7 @@ public class SeatServcie {
 	@Autowired
 	SeatRepo seatRepo;
 
-	ConcurrentHashMap<String, LocalTime> seatBookingInMemoryCache = new ConcurrentHashMap<>();
+	ConcurrentHashMap<SeatCacheKey, LocalTime> seatBookingInMemoryCache = new ConcurrentHashMap<>();
 
 	public List<Seat> getAvilableSeat(String screenID, String showid) {
 
@@ -35,12 +36,13 @@ public class SeatServcie {
 		// Fetched available Seat,Those are Available ,Not Locked.
 		// Remove those Seat those are in current Booking
 
-		seats = seats.stream().filter(st -> !seatBookingInMemoryCache.containsKey(st.getSeatNumber()))
+		seats = seats.stream().filter(
+				st -> !seatBookingInMemoryCache.containsKey(new SeatCacheKey(screenID, showid, st.getSeatNumber())))
 				.collect(Collectors.toList());
 		return seats;
 	}
 
-	@Transactional(isolation = Isolation.SERIALIZABLE)
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void createBooking(String screenid, String showid, List<Seat> selectedSeats) {
 
 		// We have to Perform Multiple Action on Seat Booking.
@@ -53,7 +55,7 @@ public class SeatServcie {
 		}
 
 		selectedSeats.forEach(e -> {
-			seatBookingInMemoryCache.put(e.getSeatNumber(), LocalTime.now());
+			seatBookingInMemoryCache.put(new SeatCacheKey(screenid, showid, e.getSeatNumber()), LocalTime.now());
 		});
 
 		// Lock the Seat in Cache.
@@ -69,14 +71,15 @@ public class SeatServcie {
 	}
 
 	private boolean isselectedSeatsAvilable(List<Seat> selectedSeats) {
-		long lockedSeat = selectedSeats.stream().filter(e -> seatBookingInMemoryCache.containsKey(e.getSeatNumber())).count();
+		long lockedSeat = selectedSeats.stream().filter(e -> seatBookingInMemoryCache.containsKey(e.getSeatNumber()))
+				.count();
 		if (lockedSeat == 0) {
 			return true;
 		}
 		return false;
 	}
 
-	@Transactional(isolation = Isolation.SERIALIZABLE)
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void CancelBooking(String screenid, String showid, List<Seat> selectedSeats) {
 
 		// Update the inmemory Cache, Remove Locked Seat
@@ -89,28 +92,23 @@ public class SeatServcie {
 		seatLockerRepo.deleteAll(seatLokedList);
 
 	}
-	
-	@Transactional(isolation = Isolation.SERIALIZABLE)
+
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void confirmSeat(String screenid, String showid, List<Seat> selectedSeats) {
-		
+
 		// Update the Seat with the Status COnfirmed.
-		
-		
-		
+
 	}
-	
-	
-	@Transactional(isolation = Isolation.SERIALIZABLE)
+
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void releaseSeatLock(String screenid, String showid, List<Seat> selectedSeats) {
 		// Remove from Cache map
 		selectedSeats.forEach(st -> {
 			seatBookingInMemoryCache.remove(st.getSeatNumber());
 		});
-		
+
 		seatLockerRepo.deleteAll(new ArrayList<>());
-		
-		
+
 	}
-	
 
 }
