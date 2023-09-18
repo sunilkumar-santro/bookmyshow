@@ -1,5 +1,6 @@
 package com.bms.service;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,16 +26,16 @@ public class SeatServcie {
 	@Autowired
 	SeatRepo seatRepo;
 
-	ConcurrentHashMap<String, Seat> seatINBooking = new ConcurrentHashMap<>();
+	ConcurrentHashMap<String, LocalTime> seatBookingInMemoryCache = new ConcurrentHashMap<>();
 
-	public synchronized List<Seat> getAvilableSeat(String screenID, String showid) {
+	public List<Seat> getAvilableSeat(String screenID, String showid) {
 
 		List<Seat> seats = showService.getShowSeats(screenID, showid);
 
-		// Fetched available Seat,Those are not confirmed ,Not Locked.
+		// Fetched available Seat,Those are Available ,Not Locked.
 		// Remove those Seat those are in current Booking
 
-		seats = seats.stream().filter(st -> !seatINBooking.containsKey(st.getSeatNumber()))
+		seats = seats.stream().filter(st -> !seatBookingInMemoryCache.containsKey(st.getSeatNumber()))
 				.collect(Collectors.toList());
 		return seats;
 	}
@@ -46,7 +47,14 @@ public class SeatServcie {
 
 		// Update the inmemory Cache.
 
-		selectedSeats.stream().map(e -> seatINBooking.put(e.getSeatNumber(), e)).close();
+		if (!isselectedSeatsAvilable(selectedSeats)) {
+			// Selected Seat are booking in Progress.
+			// Throw Exception - THis Seat is selected by some one else, Please Select
+		}
+
+		selectedSeats.forEach(e -> {
+			seatBookingInMemoryCache.put(e.getSeatNumber(), LocalTime.now());
+		});
 
 		// Lock the Seat in Cache.
 
@@ -60,16 +68,20 @@ public class SeatServcie {
 
 	}
 
-	
+	private boolean isselectedSeatsAvilable(List<Seat> selectedSeats) {
+		long lockedSeat = selectedSeats.stream().filter(e -> seatBookingInMemoryCache.containsKey(e.getSeatNumber())).count();
+		if (lockedSeat == 0) {
+			return true;
+		}
+		return false;
+	}
+
 	@Transactional(isolation = Isolation.SERIALIZABLE)
 	public void CancelBooking(String screenid, String showid, List<Seat> selectedSeats) {
 
-
-
 		// Update the inmemory Cache, Remove Locked Seat
 
-		selectedSeats.stream().map(e -> seatINBooking.remove(e.getSeatNumber())).close();
-
+		selectedSeats.stream().map(e -> seatBookingInMemoryCache.remove(e.getSeatNumber())).close();
 
 		// Update User Seat Table , Status Available.
 		List<SeatLockEntity> seatLokedList = new ArrayList<>();
@@ -77,5 +89,28 @@ public class SeatServcie {
 		seatLockerRepo.deleteAll(seatLokedList);
 
 	}
+	
+	@Transactional(isolation = Isolation.SERIALIZABLE)
+	public void confirmSeat(String screenid, String showid, List<Seat> selectedSeats) {
+		
+		// Update the Seat with the Status COnfirmed.
+		
+		
+		
+	}
+	
+	
+	@Transactional(isolation = Isolation.SERIALIZABLE)
+	public void releaseSeatLock(String screenid, String showid, List<Seat> selectedSeats) {
+		// Remove from Cache map
+		selectedSeats.forEach(st -> {
+			seatBookingInMemoryCache.remove(st.getSeatNumber());
+		});
+		
+		seatLockerRepo.deleteAll(new ArrayList<>());
+		
+		
+	}
+	
 
 }

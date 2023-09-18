@@ -21,8 +21,6 @@ public class BookingServiceController {
 		
 		bookingService.createBooking(userBooking);
 		
-		
-		
 
 		return new ResponseEntity<>("Booking Created Download the Tickets", HttpStatus.ACCEPTED);
 	}

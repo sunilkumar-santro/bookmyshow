@@ -12,9 +12,9 @@ public class TestSeat {
 	public static void main(String[] args) {
 
 		ConcurrentHashMap<String, Seat> seatINBooking = new ConcurrentHashMap<>();
-		Seat seat1 = new Seat();
-		seat1.setSeatNumber("SO1");
-		seatINBooking.put("SO1", seat1);
+//		Seat seat1 = new Seat();
+//		seat1.setSeatNumber("SO1");
+//		seatINBooking.put("SO1", seat1);
 
 		Seat seat11 = new Seat();
 		seat11.setSeatNumber("SO1");
@@ -28,9 +28,12 @@ public class TestSeat {
 		seats.add(seat2);
 		seats.add(seat3);
 
-		seats = seats.stream().filter(st -> !seatINBooking.containsKey(st.getSeatNumber())).collect(Collectors.toList());
 
-		seats.forEach(st -> System.out.println(st.getSeatNumber()));
+		seats.forEach(e -> {
+			seatINBooking.put(e.getSeatNumber(), e);
+		});
+	
+		System.out.println(seatINBooking);
 	}
 	
 

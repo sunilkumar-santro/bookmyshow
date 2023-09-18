@@ -33,12 +33,18 @@ public class BookingService {
 		
 		// Call Payment Service for Payment service for Payment.
 		
+		seatServcie.confirmSeat(userBooking.getScreenid(),userBooking.getShowid(),selectedSeats);
+		
+		seatServcie.releaseSeatLock(userBooking.getScreenid(),userBooking.getShowid(),selectedSeats);
+		
 		
 		// Call Notification Service for Notification (Ticker Confirmed).
 		
 		//Call Ticket Service to Generate Ticket.
 		
 		//Send Ticket on Mobile,EMail.
+		
+		
 		
 	
 
